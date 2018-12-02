@@ -1,0 +1,42 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+require(pacman)
+p_load(dplyr,datasets,ggplot2)
+
+#library(help="datasets")
+data(iris)
+mydata <- iris
+mydata$Species <- NULL
+
+mydata <- table(mydata)
+mydata <- na.omit(mydata)
+mydata <- scale(mydata)
+```
+
+#HClust
+```{r}
+d <- dist(mydata,method="euclidian")
+
+fit <- hclust(d, method = "ward")
+plot(fit)
+groups <- cutree(fit,k=3)
+rect.hclust(fit,k=3,border="red")
+```
+
+#K-means
+```{r}
+fit <- kmeans(mydata,3)
+aggregate(mydata,by=list(fit$cluster),FUN=mean)
+newdata <- data.frame(mydata,fit$cluster)
+
+tryplot <- iris
+tryplot$Cluster <- newdata$fit.cluster
+
+ggplot(data=tryplot)+geom_jitter(
+  mapping=aes(x=Sepal.Length,y=Sepal.Width,color=Cluster,shape=Species))
+```
+

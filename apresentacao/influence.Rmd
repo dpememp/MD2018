@@ -1,0 +1,337 @@
+---
+title: "Influence on Twitter"
+author: "Adriano Araújo"
+date: "October 31, 2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+#Influencers on Social Networks
+
+#1 - Load data set
+
+```{r}
+require(pacman)
+p_load(tidyverse,caret,pROC,e1071,C50,randomForest,caretEnsemble)
+
+s_predict <- read_csv("/home/adriano/Documents/MD/Trabalho-01/all-influence/predict.csv")
+train     <- read_csv("/home/adriano/Documents/MD/Trabalho-01/all-influence/train.csv")
+tests     <- read_csv("/home/adriano/Documents/MD/Trabalho-01/all-influence/test.csv")
+
+train$Choice <- as.factor(train$Choice)
+choice <- train$Choice
+
+train <- train
+
+s_predict$Id <- NULL
+prob_predict <- s_predict
+s_predict <- ifelse(s_predict > 0.5,1,0)
+s_predict <- as.factor(s_predict)
+
+inTraining <- createDataPartition(choice,p=.75)$Resample1
+train[inTraining,]
+```
+
+#2 - Find most signifficant attributes
+
+Duvidas : 
+
+```{r}
+modRF <- randomForest(Choice ~ ., data = train[inTraining,])
+importance(modRF)
+varImpPlot(modRF,type = 2)
+```
+```{r}
+train1 <- train
+train2 <- train
+  train2$A_retweets_sent <- NULL
+  train2$B_retweets_sent <- NULL
+train3 <- train
+  train3$A_posts <- NULL
+  train3$B_posts <- NULL
+  train3$A_mentions_sent <- NULL
+  train3$B_mentions_sent <- NULL
+  train3$A_retweets_sent <- NULL
+  train3$B_retweets_sent <- NULL
+  train3$A_following_count <-NULL
+  train3$B_following_count <-NULL
+  train3$A_network_feature_3 <- NULL
+  train3$B_network_feature_3 <- NULL
+  train3$A_network_feature_2 <- NULL
+  train3$B_network_feature_2 <- NULL
+```
+
+
+
+#3 - Find best model
+
+#Arvores
+
+#Arvore sem boosting
+```{r}
+modA11 <- C5.0(Choice ~ ., data = train1[inTraining,])
+modA12 <- C5.0(Choice ~ ., data = train2[inTraining,])
+modA13 <- C5.0(Choice ~ ., data = train3[inTraining,])
+
+prdA11 <- predict(modA11,train1[-c(inTraining),])
+  confusionMatrix(prdA11,train1[-c(inTraining),]$Choice)
+prdA12 <- predict(modA12,train2[-c(inTraining),])
+  confusionMatrix(prdA12,train2[-c(inTraining),]$Choice)
+prdA13 <- predict(modA13,train3[-c(inTraining),])
+  confusionMatrix(prdA13,train3[-c(inTraining),]$Choice)
+```
+
+#Random Forest
+```{r}
+modA21 <- randomForest(Choice ~ ., data = train1[inTraining,])
+modA22 <- randomForest(Choice ~ ., data = train2[inTraining,])
+modA23 <- randomForest(Choice ~ ., data = train3[inTraining,])
+
+prdA21 <- predict(modA21,train1[-c(inTraining),])
+  confusionMatrix(prdA21,train1[-c(inTraining),]$Choice)
+prdA22 <- predict(modA22,train2[-c(inTraining),])
+  confusionMatrix(prdA22,train2[-c(inTraining),]$Choice)
+prdA23 <- predict(modA23,train3[-c(inTraining),])
+  confusionMatrix(prdA23,train3[-c(inTraining),]$Choice)
+```
+
+#Arvore com Boosting
+
+```{r}
+modA31 <- C5.0(Choice ~ ., data = train1[inTraining,],trials = 5)
+modA32 <- C5.0(Choice ~ ., data = train2[inTraining,],trials = 5)
+modA33 <- C5.0(Choice ~ ., data = train3[inTraining,],trials = 5)
+
+prdA31 <- predict(modA31,train1[-c(inTraining),])
+  confusionMatrix(prdA31,train1[-c(inTraining),]$Choice)
+prdA32 <- predict(modA32,train2[-c(inTraining),])
+  confusionMatrix(prdA32,train2[-c(inTraining),]$Choice)
+prdA33 <- predict(modA33,train3[-c(inTraining),])
+  confusionMatrix(prdA33,train3[-c(inTraining),]$Choice)
+```
+
+#SVM
+
+#Kernel Linear
+```{r}
+modS11 <- svm(x=train1[inTraining,-c(1)],y=choice[inTraining],kernel='linear')
+modS12 <- svm(x=train2[inTraining,-c(1)],y=choice[inTraining],kernel='linear')
+modS13 <- svm(x=train3[inTraining,-c(1)],y=choice[inTraining],kernel='linear')
+
+prdS11 <- predict(modS11,train1[-c(inTraining),-c(1)])
+  confusionMatrix(prdS11,train1[-c(inTraining),]$Choice)
+prdS12 <- predict(modS12,train2[-c(inTraining),-c(1)])
+  confusionMatrix(prdS12,train2[-c(inTraining),]$Choice)
+prdS13 <- predict(modS13,train3[-c(inTraining),-c(1)])
+  confusionMatrix(prdS13,train3[-c(inTraining),]$Choice)
+```
+```{r}
+modTS11 <- tune.svm(Choice ~ ., data = train1[inTraining,],
+                      gamma = 2^(-1:1),
+                      cost  = 2^(2:4))
+modTS12 <- tune.svm(Choice ~ ., data = train2[inTraining,],
+                      gamma = 2^(-1:1),
+                      cost  = 2^(2:4))
+modTS13 <- tune.svm(Choice ~ ., data = train3[inTraining,],
+                      gamma = 2^(-1:1),
+                      cost  = 2^(2:4))
+
+prdTS11 <- predict(modTS11$best.model,train1[-c(inTraining),-c(1)])
+   confusionMatrix(prdTS11,train1[-c(inTraining),]$Choice)
+prdTS12 <- predict(modTS12$best.model,train2[-c(inTraining),-c(1)])
+   confusionMatrix(prdTS12,train2[-c(inTraining),]$Choice)
+prdTS13 <- predict(modTS13$best.model,train3[-c(inTraining),-c(1)])
+   confusionMatrix(prdTS13,train3[-c(inTraining),]$Choice)
+```
+
+#Kernel Polynomial
+```{r}
+modS21 <- svm(x=train1[inTraining,-c(1)],y=choice[inTraining],kernel='polynomial')
+modS22 <- svm(x=train2[inTraining,-c(1)],y=choice[inTraining],kernel='polynomial')
+modS23 <- svm(x=train3[inTraining,-c(1)],y=choice[inTraining],kernel='polynomial')
+
+prdS21 <- predict(modS21,train1[-c(inTraining),-c(1)])
+  confusionMatrix(prdS21,train1[-c(inTraining),]$Choice)
+prdS22 <- predict(modS22,train2[-c(inTraining),-c(1)])
+  confusionMatrix(prdS22,train2[-c(inTraining),]$Choice)
+prdS23 <- predict(modS23,train3[-c(inTraining),-c(1)])
+  confusionMatrix(prdS23,train3[-c(inTraining),]$Choice)
+```
+
+#Kernel Sigmoid
+```{r}
+modS31 <- svm(x=train1[inTraining,-c(1)],y=choice[inTraining],kernel='sigmoid')
+modS32 <- svm(x=train2[inTraining,-c(1)],y=choice[inTraining],kernel='sigmoid')
+modS33 <- svm(x=train3[inTraining,-c(1)],y=choice[inTraining],kernel='sigmoid')
+
+prdS31 <- predict(modS31,train1[-c(inTraining),-c(1)])
+  confusionMatrix(prdS31,train1[-c(inTraining),]$Choice)
+prdS32 <- predict(modS32,train2[-c(inTraining),-c(1)])
+  confusionMatrix(prdS32,train2[-c(inTraining),]$Choice)
+prdS33 <- predict(modS33,train3[-c(inTraining),-c(1)])
+  confusionMatrix(prdS33,train3[-c(inTraining),]$Choice)
+```
+
+#Kernel Radial
+```{r}
+modS41 <- svm(x=train1[inTraining,-c(1)],y=choice[inTraining],kernel='radial')
+modS42 <- svm(x=train2[inTraining,-c(1)],y=choice[inTraining],kernel='radial')
+modS43 <- svm(x=train3[inTraining,-c(1)],y=choice[inTraining],kernel='radial')
+
+prdS41 <- predict(modS41,train1[-c(inTraining),-c(1)])
+  confusionMatrix(prdS41,train1[-c(inTraining),]$Choice)
+prdS42 <- predict(modS42,train2[-c(inTraining),-c(1)])
+  confusionMatrix(prdS42,train2[-c(inTraining),]$Choice)
+prdS43 <- predict(modS43,train3[-c(inTraining),-c(1)])
+  confusionMatrix(prdS43,train3[-c(inTraining),]$Choice)
+```
+
+#MLP
+```{r}
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 10,
+                           repeats = 10)
+
+modM11 <- train(Choice ~ ., data = train1[inTraining,],
+                method = "mlp",
+                trControl = fitControl,
+                verbose = FALSE)
+modM12 <- train(Choice ~ ., data = train2[inTraining,],
+                method = "mlp",
+                trControl = fitControl,
+                verbose = FALSE)
+modM13 <- train(Choice ~ ., data = train3[inTraining,],
+                method = "mlp",
+                trControl = fitControl,
+                verbose = FALSE)
+
+prdM11 <- predict(modM11,train1[-c(inTraining),])
+  confusionMatrix(prdM11,train1[-c(inTraining),]$Choice)
+prdM12 <- predict(modM12,train2[-c(inTraining),])
+  confusionMatrix(prdM12,train2[-c(inTraining),]$Choice)
+prdM13 <- predict(modM13,train3[-c(inTraining),])
+  confusionMatrix(prdM13,train3[-c(inTraining),]$Choice)
+```
+
+
+#Caret
+
+#GBM
+```{r}
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 10,
+                           repeats = 10)
+
+modC11 <- train(Choice ~ ., data = train1[inTraining,],
+                method = "gbm",
+                trControl = fitControl,
+                verbose = FALSE)
+modC12 <- train(Choice ~ ., data = train2[inTraining,],
+                method = "gbm",
+                trControl = fitControl,
+                verbose = FALSE)
+modC13 <- train(Choice ~ ., data = train3[inTraining,],
+                method = "gbm",
+                trControl = fitControl,
+                verbose = FALSE)
+
+prdC11 <- predict(modC11,train1[-c(inTraining),])
+  confusionMatrix(prdC11,train1[-c(inTraining),]$Choice)
+prdC12 <- predict(modC12,train2[-c(inTraining),])
+  confusionMatrix(prdC12,train2[-c(inTraining),]$Choice)
+prdC13 <- predict(modC13,train3[-c(inTraining),])
+  confusionMatrix(prdC13,train3[-c(inTraining),]$Choice)
+```
+
+#AdaBag
+```{r}
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 10,
+                           repeats = 10)
+
+modC21 <- train(Choice ~ ., data = train1[inTraining,],
+                method = "AdaBag",
+                trControl = fitControl,
+                verbose = FALSE)
+modC22 <- train(Choice ~ ., data = train2[inTraining,],
+                method = "AdaBag",
+                trControl = fitControl,
+                verbose = FALSE)
+modC23 <- train(Choice ~ ., data = train3[inTraining,],
+                method = "AdaBag",
+                trControl = fitControl,
+                verbose = FALSE)
+
+prdC21 <- predict(modC21,train1[-c(inTraining),])
+  confusionMatrix(prdC21,train1[-c(inTraining),]$Choice)
+prdC22 <- predict(modC22,train2[-c(inTraining),])
+  confusionMatrix(prdC22,train2[-c(inTraining),]$Choice)
+prdC23 <- predict(modC23,train3[-c(inTraining),])
+  confusionMatrix(prdC23,train3[-c(inTraining),]$Choice)
+```
+
+#4 - Ensembles
+
+#Bagging - Caret
+
+```{r}
+prdA33 <- predict(modA33,train3[-c(inTraining),])
+  confusionMatrix(prdA33,train3[-c(inTraining),]$Choice)
+prdS33 <- predict(modS33,train3[-c(inTraining),-c(1)])
+  confusionMatrix(prdS33,train3[-c(inTraining),]$Choice)
+prdC13 <- predict(modC13,train3[-c(inTraining),])
+  confusionMatrix(prdC13,train3[-c(inTraining),]$Choice)
+
+b <- as.numeric(prdA33) - 1 + as.numeric(prdS33) - 1 + as.numeric(prdC13) - 1
+a <- ifelse(b>1,"X1","X0")
+
+confusionMatrix(as.factor(a),train3[-inTraining,]$Choice)    
+```
+
+```{r}
+p_load(caretEnsemble)
+
+my_control <- trainControl(
+  method="boot",
+  number=25,
+  savePredictions="final",
+  classProbs=TRUE,
+  index=createResample(train3[inTraining,]$Choice, 25),
+  summaryFunction=twoClassSummary
+  )
+
+bag03 <- caretList(Choice ~ ., data = train3[inTraining,],
+                   trControl=my_control,
+                   methodList=c("gbm","mlp","svmRadialSigma")
+                   )
+
+prd <- predict(bag03,train3[-inTraining,])
+x <- as.numeric(prd[,1]) + as.numeric(prd[,2]) + as.numeric(prd[,3])
+x <- ifelse(x < 2,"X0","X1")
+x <- as.factor(x)
+confusionMatrix(x,train3[-inTraining,]$Choice)
+```
+
+# Stacking Caret Ensemble
+
+```{r}
+
+stk03 <- caretEnsemble(bag03,
+                       metric="ROC",
+                       trControl=trainControl(
+                       number=2,
+                       summaryFunction=twoClassSummary,
+                       classProbs=TRUE)
+                       )
+
+prd <- predict(stk03$models,train3[-inTraining,])
+  prd[,1] <- ifelse(prd[,1]>0.5,1,0)
+  prd[,2] <- ifelse(prd[,2]>0.5,1,0)
+  prd[,3] <- ifelse(prd[,3]>0.5,1,0)
+  y <- prd[,1] + prd[,2] + prd[,3]
+  y <- ifelse(y<2,"X0","X1")
+  y <- as.factor(y)
+confusionMatrix(y,train3[-inTraining,]$Choice)
+```
+

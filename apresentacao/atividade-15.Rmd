@@ -1,0 +1,41 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Pré-processamento
+```{r}
+require(pacman)
+p_load(caret,tidyverse,curl)
+
+anime  <- read_csv("/home/adriano/Documents/MD/CLSS-11/Anime/anime.csv")
+rating <- read_csv("/home/adriano/Documents/MD/CLSS-11/Anime/rating.csv")
+
+titlesDup <- which(duplicated(anime$name))
+anime$name[titlesDup] <- paste0(anime$name[titlesDup],"(dup)") # marca nomes de filmes duplicados
+
+anime  <- select(anime,c("anime_id","name"))
+names(anime)[1] <- "id"
+
+anime  <- filter(anime,id %in% rating$anime_id)
+rating <- filter(rating,anime_id %in% anime$id)
+
+rating <- rating[rating$user_id <= 101,]
+
+rating$rating <- ifelse(rating$rating == -1,0,as.integer((rating$rating + 1)/2))
+
+rating <- filter(rating,rating==5) %>% select(user_id,anime_id)
+anime <- filter(anime, id %in% rating$anime_id)
+```
+
+```{r}
+p_load(arules)
+
+tableRatings <- table(rating)
+colnames(tableRatings) <- anime$name
+
+transacoes <- as(tableRatings > 0,"transactions")
+itemSetFF <- eclat(transacoes,parameter = list(supp=0.02,target="closed"))
+regrasFechadas <- ruleInduction(itemSetFF,confidence=.8)
+```
+

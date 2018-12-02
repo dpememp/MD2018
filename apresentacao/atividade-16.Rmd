@@ -1,0 +1,70 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#Pré-processamento
+```{r}
+require(pacman)
+p_load(caret,tidyverse,curl)
+
+anime  <- read_csv("/home/adriano/Documents/MD/CLSS-11/Anime/anime.csv")
+rating <- read_csv("/home/adriano/Documents/MD/CLSS-11/Anime/rating.csv")
+#titlesDup <- which(duplicated(anime$name))
+#anime$name[titlesDup] <- paste0(anime$name[titlesDup],"(dup)") # marca nomes de filmes duplicados
+names(anime)[1] <- "id"
+anime  <- select(anime, c("id","name"))
+
+anime  <- filter(anime,id %in% rating$anime_id)
+rating <- filter(rating,anime_id %in% anime$id)
+
+rating <- rating[rating$user_id <= 102,]
+
+rating$rating <- ifelse(rating$rating == -1,0,as.integer((rating$rating + 1)/2))
+
+anime <- filter(anime, id %in% rating$anime_id)
+
+tableRatings <- table(rating)
+colnames(tableRatings) <- anime$name
+
+Aux <-         tableRatings[,,1]
+Aux <- Aux +   tableRatings[,,2]
+Aux <- Aux + 2*tableRatings[,,3]
+Aux <- Aux + 3*tableRatings[,,4]
+Aux <- Aux + 4*tableRatings[,,5]
+Aux <- Aux + 5*tableRatings[,,6]
+
+tableRatings <- Aux
+colnames(tableRatings) <- anime$name
+```
+
+
+```{r}
+p_load(rrecsys)
+
+tr <- as.matrix(tableRatings)
+ML <- defineData(tr,minimum = 0,positiveThreshold = 1)
+```
+
+#Recommender Lab
+```{r}
+p_load(recommenderlab)
+
+A_Matrix <- Matrix(tableRatings,sparse = TRUE)
+R_Matrix <- new("realRatingMatrix",data = A_Matrix)
+
+as(R_Matrix[2,],"list")
+```
+```{r}
+hist(getRatings(R_Matrix))
+hist(getRatings(normalize(R_Matrix)))
+```
+```{r}
+recomendador  <- Recommender(data=R_Matrix[1:100,],method="POPULAR")
+recomendacoes <- predict(recomendador,R_Matrix[101:102,],n=5)
+as(recomendacoes,"list")
+```
+```{r}
+tresRecomendacoes <- bestN(recomendacoes, n = 3)
+as(tresRecomendacoes,"list")
+```
