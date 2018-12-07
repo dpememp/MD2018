@@ -38,14 +38,6 @@ tableRatings <- Aux
 colnames(tableRatings) <- anime$name
 ```
 
-
-```{r}
-p_load(rrecsys)
-
-tr <- as.matrix(tableRatings)
-ML <- defineData(tr,minimum = 0,positiveThreshold = 1)
-```
-
 #Recommender Lab
 ```{r}
 p_load(recommenderlab)
